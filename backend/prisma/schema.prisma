@@ -1,0 +1,363 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// 用户表
+model User {
+  id            Int       @id @default(autoincrement())
+  username      String    @unique @db.VarChar(50)
+  email         String    @unique @db.VarChar(100)
+  passwordHash  String    @map("password_hash") @db.VarChar(255)
+  fullName      String    @map("full_name") @db.VarChar(100)
+  role          UserRole  @default(sales)
+  departmentId  Int?      @map("department_id")
+  phone         String?   @db.VarChar(20)
+  avatarUrl     String?   @map("avatar_url") @db.VarChar(255)
+  status        UserStatus @default(active)
+  lastLoginAt   DateTime? @map("last_login_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // 关联关系
+  department    Department? @relation(fields: [departmentId], references: [id])
+  managedDepartments Department[] @relation("DepartmentManager")
+  createdInquiries Inquiry[] @relation("InquiryCreator")
+  assignedInquiries Inquiry[] @relation("InquiryAssignee")
+  followUpRecords FollowUpRecord[]
+  aiAnalysisRecords AiAnalysisRecord[]
+  customFieldConfigs UserCustomFieldConfig[]
+  operationLogs OperationLog[]
+
+  @@index([email])
+  @@index([username])
+  @@index([departmentId])
+  @@index([role])
+  @@map("users")
+}
+
+// 部门表
+model Department {
+  id          Int             @id @default(autoincrement())
+  name        String          @db.VarChar(100)
+  description String?         @db.Text
+  parentId    Int?            @map("parent_id")
+  managerId   Int?            @map("manager_id")
+  status      DepartmentStatus @default(active)
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  // 关联关系
+  parent      Department? @relation("DepartmentHierarchy", fields: [parentId], references: [id])
+  children    Department[] @relation("DepartmentHierarchy")
+  manager     User?       @relation("DepartmentManager", fields: [managerId], references: [id])
+  users       User[]
+  inquiries   Inquiry[]
+
+  @@index([parentId])
+  @@index([managerId])
+  @@map("departments")
+}
+
+// 询盘表
+model Inquiry {
+  id                  Int           @id @default(autoincrement())
+  inquiryNo          String        @unique @map("inquiry_no") @db.VarChar(50)
+  title              String        @db.VarChar(200)
+  content            String        @db.Text
+  sourceChannel      String        @map("source_channel") @db.VarChar(50)
+  customerName       String        @map("customer_name") @db.VarChar(100)
+  customerEmail      String?       @map("customer_email") @db.VarChar(100)
+  customerPhone      String?       @map("customer_phone") @db.VarChar(20)
+  customerCompany    String?       @map("customer_company") @db.VarChar(200)
+  customerAddress    String?       @map("customer_address") @db.Text
+  customerType       CustomerType  @map("customer_type") @default(individual)
+  region             String?       @db.VarChar(100)
+  country            String?       @db.VarChar(100)
+  assignedTo         Int?          @map("assigned_to")
+  departmentId       Int?          @map("department_id")
+  priority           Priority      @default(medium)
+  status             InquiryStatus @default(new)
+  estimatedValue     Decimal?      @map("estimated_value") @db.Decimal(15, 2)
+  currency           String?       @default("USD") @db.VarChar(10)
+  expectedCloseDate  DateTime?     @map("expected_close_date") @db.Date
+  aiAnalysisScore    Decimal?      @map("ai_analysis_score") @db.Decimal(5, 2)
+  aiAnalysisSummary  String?       @map("ai_analysis_summary") @db.Text
+  tags               Json?
+  customFields       Json?         @map("custom_fields")
+  createdBy          Int           @map("created_by")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+
+  // 关联关系
+  assignee           User?         @relation("InquiryAssignee", fields: [assignedTo], references: [id])
+  department         Department?   @relation(fields: [departmentId], references: [id])
+  creator            User          @relation("InquiryCreator", fields: [createdBy], references: [id])
+  followUpRecords    FollowUpRecord[]
+  aiAnalysisRecords  AiAnalysisRecord[]
+
+  @@index([inquiryNo])
+  @@index([customerEmail])
+  @@index([assignedTo])
+  @@index([departmentId])
+  @@index([status])
+  @@index([sourceChannel])
+  @@index([createdAt])
+  @@index([region])
+  @@index([status, assignedTo])
+  @@index([departmentId, createdAt])
+  @@index([sourceChannel, status])
+  @@fulltext([title, content])
+  @@map("inquiries")
+}
+
+// 自定义字段定义表
+model CustomFieldDefinition {
+  id              Int                     @id @default(autoincrement())
+  fieldName       String                  @map("field_name") @db.VarChar(100)
+  fieldKey        String                  @unique @map("field_key") @db.VarChar(100)
+  fieldType       CustomFieldType         @map("field_type")
+  fieldOptions    Json?                   @map("field_options")
+  defaultValue    String?                 @map("default_value") @db.Text
+  isRequired      Boolean                 @default(false) @map("is_required")
+  isSearchable    Boolean                 @default(true) @map("is_searchable")
+  displayOrder    Int                     @default(0) @map("display_order")
+  validationRules Json?                   @map("validation_rules")
+  description     String?                 @db.Text
+  status          CustomFieldStatus       @default(active)
+  createdBy       Int                     @map("created_by")
+  createdAt       DateTime                @default(now()) @map("created_at")
+  updatedAt       DateTime                @updatedAt @map("updated_at")
+
+  // 关联关系
+  userConfigs     UserCustomFieldConfig[]
+
+  @@index([fieldType])
+  @@index([displayOrder])
+  @@map("custom_field_definitions")
+}
+
+// 用户自定义字段配置表
+model UserCustomFieldConfig {
+  id           Int      @id @default(autoincrement())
+  userId       Int      @map("user_id")
+  fieldId      Int      @map("field_id")
+  isVisible    Boolean  @default(true) @map("is_visible")
+  displayOrder Int      @default(0) @map("display_order")
+  columnWidth  Int?     @map("column_width")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // 关联关系
+  user         User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  field        CustomFieldDefinition  @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fieldId])
+  @@index([userId])
+  @@index([displayOrder])
+  @@map("user_custom_field_configs")
+}
+
+// 跟进记录表
+model FollowUpRecord {
+  id                Int              @id @default(autoincrement())
+  inquiryId         Int              @map("inquiry_id")
+  followUpType      FollowUpType     @map("follow_up_type")
+  content           String           @db.Text
+  result            FollowUpResult?
+  nextFollowUpDate  DateTime?        @map("next_follow_up_date")
+  attachments       Json?
+  createdBy         Int              @map("created_by")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+
+  // 关联关系
+  inquiry           Inquiry          @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  creator           User             @relation(fields: [createdBy], references: [id])
+
+  @@index([inquiryId])
+  @@index([createdBy])
+  @@index([nextFollowUpDate])
+  @@index([createdAt])
+  @@index([inquiryId, createdAt])
+  @@map("follow_up_records")
+}
+
+// AI分析记录表
+model AiAnalysisRecord {
+  id               Int              @id @default(autoincrement())
+  inquiryId        Int              @map("inquiry_id")
+  aiProvider       AiProvider       @map("ai_provider")
+  modelName        String           @map("model_name") @db.VarChar(100)
+  analysisType     AnalysisType     @map("analysis_type")
+  inputData        Json             @map("input_data")
+  outputData       Json             @map("output_data")
+  confidenceScore  Decimal?         @map("confidence_score") @db.Decimal(5, 2)
+  processingTimeMs Int?             @map("processing_time_ms")
+  costAmount       Decimal?         @map("cost_amount") @db.Decimal(10, 6)
+  status           AnalysisStatus   @default(pending)
+  errorMessage     String?          @map("error_message") @db.Text
+  createdBy        Int              @map("created_by")
+  createdAt        DateTime         @default(now()) @map("created_at")
+
+  // 关联关系
+  inquiry          Inquiry          @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  creator          User             @relation(fields: [createdBy], references: [id])
+
+  @@index([inquiryId])
+  @@index([aiProvider])
+  @@index([analysisType])
+  @@index([createdAt])
+  @@index([inquiryId, analysisType])
+  @@map("ai_analysis_records")
+}
+
+// 系统配置表
+model SystemConfig {
+  id          Int              @id @default(autoincrement())
+  configKey   String           @unique @map("config_key") @db.VarChar(100)
+  configValue String?          @map("config_value") @db.Text
+  configType  ConfigType       @map("config_type") @default(string)
+  description String?          @db.Text
+  isEncrypted Boolean          @default(false) @map("is_encrypted")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  @@index([configKey])
+  @@map("system_configs")
+}
+
+// 操作日志表
+model OperationLog {
+  id                   Int      @id @default(autoincrement())
+  userId               Int?     @map("user_id")
+  operationType        String   @map("operation_type") @db.VarChar(50)
+  resourceType         String   @map("resource_type") @db.VarChar(50)
+  resourceId           Int?     @map("resource_id")
+  operationDescription String?  @map("operation_description") @db.Text
+  ipAddress            String?  @map("ip_address") @db.VarChar(45)
+  userAgent            String?  @map("user_agent") @db.Text
+  requestData          Json?    @map("request_data")
+  responseData         Json?    @map("response_data")
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  // 关联关系
+  user                 User?    @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([operationType])
+  @@index([resourceType])
+  @@index([createdAt])
+  @@map("operation_logs")
+}
+
+// 枚举定义
+enum UserRole {
+  admin
+  manager
+  sales
+  customer_service
+}
+
+enum UserStatus {
+  active
+  inactive
+  suspended
+}
+
+enum DepartmentStatus {
+  active
+  inactive
+}
+
+enum CustomerType {
+  individual
+  enterprise
+  government
+  other
+}
+
+enum Priority {
+  low
+  medium
+  high
+  urgent
+}
+
+enum InquiryStatus {
+  new
+  contacted
+  quoted
+  negotiating
+  won
+  lost
+  closed
+}
+
+enum CustomFieldType {
+  text
+  number
+  date
+  datetime
+  select
+  multiselect
+  boolean
+  textarea
+}
+
+enum CustomFieldStatus {
+  active
+  inactive
+}
+
+enum FollowUpType {
+  phone
+  email
+  wechat
+  meeting
+  visit
+  other
+}
+
+enum FollowUpResult {
+  no_answer
+  interested
+  not_interested
+  need_more_info
+  quoted
+  negotiating
+  closed
+}
+
+enum AiProvider {
+  openai
+  deepseek
+  gemini
+}
+
+enum AnalysisType {
+  content_analysis
+  intent_analysis
+  sentiment_analysis
+  recommendation
+}
+
+enum AnalysisStatus {
+  pending
+  completed
+  failed
+}
+
+enum ConfigType {
+  string
+  number
+  boolean
+  json
+}
