@@ -1,22 +1,21 @@
 version: '3.8'
 
 services:
-  # MySQL数据库
-  mysql:
-    image: mysql:8.0
-    container_name: inquiry-crm-mysql
+  # PostgreSQL数据库
+  postgres:
+    image: postgres:15
+    container_name: inquiry-crm-postgres
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123456}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-inquiry_crm}
-      MYSQL_USER: ${MYSQL_USER:-crm_user}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-crm_password}
+      POSTGRES_DB: ${POSTGRES_DB:-inquiry_crm}
+      POSTGRES_USER: ${POSTGRES_USER:-crm_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-crm_password}
+      PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - "${MYSQL_PORT:-3306}:3306"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql/data
       - ./backend/database/init:/docker-entrypoint-initdb.d
-    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     networks:
       - crm-network
 
@@ -43,7 +42,7 @@ services:
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: 3001
-      DATABASE_URL: mysql://${MYSQL_USER:-crm_user}:${MYSQL_PASSWORD:-crm_password}@mysql:3306/${MYSQL_DATABASE:-inquiry_crm}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-crm_user}:${POSTGRES_PASSWORD:-crm_password}@postgres:5432/${POSTGRES_DB:-inquiry_crm}
       REDIS_URL: redis://:${REDIS_PASSWORD:-redis123456}@redis:6379
       JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
@@ -66,7 +65,7 @@ services:
       - ./backend/uploads:/app/uploads
       - ./backend/logs:/app/logs
     depends_on:
-      - mysql
+      - postgres
       - redis
     networks:
       - crm-network
@@ -113,7 +112,7 @@ services:
       - crm-network
 
 volumes:
-  mysql_data:
+  postgres_data:
     driver: local
   redis_data:
     driver: local

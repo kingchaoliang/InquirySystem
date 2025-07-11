@@ -51,10 +51,26 @@ export default defineConfig({
       ],
     },
     {
-      path: '/ai-analysis',
-      name: 'ai-analysis',
+      path: '/ai',
+      name: 'ai',
       icon: 'robot',
-      component: './AIAnalysis',
+      routes: [
+        {
+          path: '/ai/analysis',
+          name: 'analysis',
+          component: './AI/Analysis',
+        },
+        {
+          path: '/ai/history',
+          name: 'history',
+          component: './AI/History',
+        },
+        {
+          path: '/ai/compare',
+          name: 'compare',
+          component: './AI/Compare',
+        },
+      ],
     },
     {
       path: '/follow-up',
@@ -69,15 +85,27 @@ export default defineConfig({
       component: './Statistics',
     },
     {
+      path: '/custom-fields',
+      name: 'custom-fields',
+      icon: 'setting',
+      routes: [
+        {
+          path: '/custom-fields/list',
+          name: 'list',
+          component: './CustomField/List',
+        },
+        {
+          path: '/custom-fields/config',
+          name: 'config',
+          component: './CustomField/Config',
+        },
+      ],
+    },
+    {
       path: '/settings',
       name: 'settings',
       icon: 'setting',
       routes: [
-        {
-          path: '/settings/custom-fields',
-          name: 'custom-fields',
-          component: './Settings/CustomFields',
-        },
         {
           path: '/settings/users',
           name: 'users',
