@@ -478,16 +478,16 @@ export class StatisticsService {
     startDate?: Date,
     endDate?: Date
   ): Promise<any[]> {
-    // 这里使用原生SQL查询来获取每日统计
+    // 这里使用原生SQL查询来获取每日统计 (PostgreSQL语法)
     const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const end = endDate || new Date();
 
     const result = await prisma.$queryRaw`
-      SELECT 
+      SELECT
         DATE(created_at) as date,
-        COUNT(*) as count,
-        SUM(estimated_value) as total_value
-      FROM inquiries 
+        COUNT(*)::int as count,
+        COALESCE(SUM(estimated_value), 0)::float as total_value
+      FROM inquiries
       WHERE created_at >= ${start} AND created_at <= ${end}
       GROUP BY DATE(created_at)
       ORDER BY date ASC
@@ -504,18 +504,18 @@ export class StatisticsService {
     startDate?: Date,
     endDate?: Date
   ): Promise<any[]> {
-    // 这里使用原生SQL查询来获取每月统计
+    // 这里使用原生SQL查询来获取每月统计 (PostgreSQL语法)
     const start = startDate || new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
     const end = endDate || new Date();
 
     const result = await prisma.$queryRaw`
-      SELECT 
-        DATE_FORMAT(created_at, '%Y-%m') as month,
-        COUNT(*) as count,
-        SUM(estimated_value) as total_value
-      FROM inquiries 
+      SELECT
+        TO_CHAR(created_at, 'YYYY-MM') as month,
+        COUNT(*)::int as count,
+        COALESCE(SUM(estimated_value), 0)::float as total_value
+      FROM inquiries
       WHERE created_at >= ${start} AND created_at <= ${end}
-      GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+      GROUP BY TO_CHAR(created_at, 'YYYY-MM')
       ORDER BY month ASC
     `;
 

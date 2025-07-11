@@ -19,6 +19,26 @@ import statisticsRoutes from '@/routes/statistics';
 import { errorHandler } from '@/middleware/errorHandler';
 import { authMiddleware } from '@/middleware/auth';
 import { logger } from '@/utils/logger';
+import {
+  compressionMiddleware,
+  requestTimingMiddleware,
+  memoryMonitoringMiddleware,
+  performanceMetricsMiddleware,
+  initRedis,
+  startCacheCleanupTask,
+  getHealthCheckData
+} from '@/middleware/performance';
+import {
+  generalRateLimit,
+  loginRateLimit,
+  apiRateLimit,
+  suspiciousActivityMiddleware,
+  requestSizeLimitMiddleware,
+  sqlInjectionDetectionMiddleware,
+  xssDetectionMiddleware,
+  startSecurityMonitoring,
+  getSecurityStats
+} from '@/middleware/security';
 
 // 加载环境变量
 dotenv.config();
@@ -35,6 +55,18 @@ app.use(cors({
   credentials: true,
 }));
 
+// 性能中间件
+app.use(compressionMiddleware);
+app.use(requestTimingMiddleware);
+app.use(memoryMonitoringMiddleware);
+app.use(performanceMetricsMiddleware);
+
+// 安全防护中间件
+app.use(suspiciousActivityMiddleware);
+app.use(requestSizeLimitMiddleware());
+app.use(sqlInjectionDetectionMiddleware);
+app.use(xssDetectionMiddleware);
+
 // 请求日志
 app.use(morgan('combined', {
   stream: {
@@ -42,26 +74,39 @@ app.use(morgan('combined', {
   }
 }));
 
-// 请求限制
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15分钟
-  max: 100, // 限制每个IP 15分钟内最多100个请求
-  message: {
-    error: '请求过于频繁，请稍后再试'
-  }
-});
-app.use('/api', limiter);
+// 通用速率限制
+app.use(generalRateLimit);
+
+// API特定速率限制
+app.use('/api', apiRateLimit);
+
+// 登录速率限制
+app.use('/api/auth/login', loginRateLimit);
 
 // 解析JSON
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // 健康检查
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
+  try {
+    const healthData = await getHealthCheckData();
+    res.json(healthData);
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Health check failed',
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+// 性能指标端点
+app.get('/metrics', (req, res) => {
+  const securityStats = getSecurityStats();
   res.json({
-    status: 'ok',
+    security: securityStats,
     timestamp: new Date().toISOString(),
-    uptime: process.uptime()
   });
 });
 
@@ -86,10 +131,31 @@ app.use('*', (req, res) => {
 // 错误处理中间件
 app.use(errorHandler);
 
+// 初始化服务
+const initializeServices = async () => {
+  try {
+    // 初始化Redis
+    await initRedis();
+
+    // 启动缓存清理任务
+    startCacheCleanupTask();
+
+    // 启动安全监控
+    startSecurityMonitoring();
+
+    logger.info('All services initialized successfully');
+  } catch (error) {
+    logger.error('Failed to initialize services', error);
+  }
+};
+
 // 启动服务器
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   logger.info(`服务器运行在端口 ${PORT}`);
   console.log(`🚀 服务器运行在 http://localhost:${PORT}`);
+
+  // 初始化服务
+  await initializeServices();
 });
 
 export default app;

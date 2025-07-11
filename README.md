@@ -27,67 +27,101 @@
 - MySQL 8.0+
 - Redis 7+
 
-## 🛠️ 快速开始
+## 🚀 快速开始
 
-### 1. 克隆项目
+### 环境要求
+
+- Node.js 18+
+- PostgreSQL 15+
+- Redis 6.0+
+- Docker & Docker Compose (推荐)
+
+### 一键启动（推荐）
+
 ```bash
-git clone <repository-url>
-cd inquiry-crm-system
+# 克隆项目
+git clone https://github.com/kingchaoliang/InquirySystem
+cd InquirySystem
+
+# 使用Docker一键启动
+./scripts/start-system.sh docker
 ```
 
-### 2. 环境配置
+### 手动安装步骤
+
+#### 1. 克隆项目
+```bash
+git clone https://github.com/kingchaoliang/InquirySystem
+cd InquirySystem
+```
+
+#### 2. 环境配置
 ```bash
 # 复制环境变量文件
 cp .env.example .env
 
-# 编辑环境变量
+# 编辑环境变量（重要：配置数据库和AI API密钥）
 vim .env
 ```
 
-### 3. 使用Docker启动（推荐）
+#### 3. 启动开发环境
 ```bash
-# 启动所有服务
+# 使用启动脚本（自动安装依赖、初始化数据库）
+./scripts/start-system.sh dev
+```
+
+#### 4. 或者手动启动
+```bash
+# 安装前端依赖
+npm install
+
+# 安装后端依赖
+cd backend
+npm install
+
+# 数据库设置
+npx prisma generate
+npx prisma migrate deploy
+npm run seed
+
+# 启动后端服务
+npm run dev
+
+# 启动前端服务（新终端）
+cd ..
+npm run dev
+```
+
+### Docker 部署
+
+```bash
+# 使用Docker Compose启动所有服务
 docker-compose up -d
+
+# 或使用启动脚本
+./scripts/start-system.sh docker
 
 # 查看服务状态
 docker-compose ps
 
 # 查看日志
 docker-compose logs -f
+
+# 停止服务
+docker-compose down
 ```
 
-### 4. 手动启动（开发环境）
+### 系统测试
 
-#### 启动数据库和Redis
 ```bash
-# 启动MySQL和Redis
-docker-compose up -d mysql redis
-```
+# 运行完整系统测试
+./scripts/start-system.sh test
 
-#### 启动后端
-```bash
-cd backend
+# 单独运行数据库测试
+./scripts/test-database.sh
 
-# 安装依赖
-npm install
-
-# 生成Prisma客户端
-npx prisma generate
-
-# 运行数据库迁移
-npx prisma migrate dev
-
-# 启动开发服务器
-npm run dev
-```
-
-#### 启动前端
-```bash
-# 在项目根目录
-npm install
-
-# 启动开发服务器
-npm run dev
+# 单独运行API测试
+./scripts/test-api.sh
 ```
 
 ## 📚 项目结构

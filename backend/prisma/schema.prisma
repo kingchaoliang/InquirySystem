@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -114,7 +114,8 @@ model Inquiry {
   @@index([status, assignedTo])
   @@index([departmentId, createdAt])
   @@index([sourceChannel, status])
-  @@fulltext([title, content])
+  @@index([title])
+  @@index([content])
   @@map("inquiries")
 }
 
