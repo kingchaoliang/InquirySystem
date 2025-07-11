@@ -12,6 +12,8 @@ import userRoutes from '@/routes/user';
 import departmentRoutes from '@/routes/department';
 import aiRoutes from '@/routes/ai';
 import customFieldRoutes from '@/routes/customField';
+import followUpRoutes from '@/routes/followUp';
+import statisticsRoutes from '@/routes/statistics';
 
 // 导入中间件
 import { errorHandler } from '@/middleware/errorHandler';
@@ -70,6 +72,8 @@ app.use('/api/departments', authMiddleware, departmentRoutes);
 app.use('/api/inquiries', authMiddleware, inquiryRoutes);
 app.use('/api/ai', authMiddleware, aiRoutes);
 app.use('/api/custom-fields', authMiddleware, customFieldRoutes);
+app.use('/api/follow-ups', authMiddleware, followUpRoutes);
+app.use('/api/statistics', authMiddleware, statisticsRoutes);
 
 // 404处理
 app.use('*', (req, res) => {
